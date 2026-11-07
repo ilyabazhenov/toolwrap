@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>toolwrap — MCP gateway for Claude Code, Codex and Cursor</title>
+    <meta
+      name="description"
+      content="toolwrap is a local MCP gateway: one set of MCP servers and keys per project, secrets in your OS keychain, and approval for risky agent calls — even in bypass mode."
+    />
+    <link rel="canonical" href="https://toolwrap.app/" />
+    <link rel="alternate" hreflang="en" href="https://toolwrap.app/" />
+    <link rel="alternate" hreflang="ru" href="https://toolwrap.app/ru/" />
+    <link rel="alternate" hreflang="x-default" href="https://toolwrap.app/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f6f4ee" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f1514" media="(prefers-color-scheme: dark)" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="toolwrap" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="ru_RU" />
+    <meta property="og:url" content="https://toolwrap.app/" />
+    <meta property="og:title" content="toolwrap — give your agent the tools, keep the keys" />
+    <meta
+      property="og:description"
+      content="Each project gets its own MCP servers and credentials. Deletes, merges and deploys wait for your “Allow”."
+    />
+    <meta property="og:image" content="https://toolwrap.app/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="toolwrap: projects woven over the tools each one gets" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/assets/site.css" />
+    <script src="/assets/site.js" defer></script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://toolwrap.app/#site",
+            "url": "https://toolwrap.app/",
+            "name": "toolwrap",
+            "inLanguage": ["en", "ru"]
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://toolwrap.app/#app",
+            "name": "toolwrap",
+            "url": "https://toolwrap.app/",
+            "image": "https://toolwrap.app/og.png",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "macOS, Windows, Linux",
+            "softwareVersion": "0.1.0",
+            "description": "A local MCP gateway that groups ready-made MCP servers into per-project sets with their own credentials, tool edits, project context and approval of risky calls. Works with Claude Code, Codex, Cursor, VS Code and Gemini CLI.",
+            "featureList": [
+              "Per-project sets of MCP servers",
+              "Credentials in the OS keychain instead of .mcp.json",
+              "Approval of risky agent calls, even in bypass mode",
+              "Policy edits by the agent are held for a human",
+              "Tool description, argument and visibility edits",
+              "Project context delivered to the agent",
+              "Call log with redacted secrets"
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://toolwrap.app/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is an MCP gateway?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "An MCP gateway sits between AI clients and MCP servers. Instead of configuring every server in every client, you connect the client to the gateway once, and the gateway decides which servers, credentials and rules apply to each project."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Which clients does toolwrap work with?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Any MCP client: Claude Code, Codex, Cursor, VS Code, Gemini CLI. Stdio clients connect through mcphub-bridge, others over HTTP on 127.0.0.1. Existing servers can be imported from Claude Code and Codex."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Where are tokens and API keys stored?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "In the OS secret store: Keychain on macOS, Credential Manager on Windows, Secret Service on Linux. On import, toolwrap removes tokens from client configs; the call log redacts secrets."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can the agent turn approvals off by itself?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. An edit that weakens protection — in the set file, through the CLI or by adding a server — is not applied until a human clicks Apply in the toolwrap window. Until then the previous policy holds."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What happens if I am away from the computer?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The approval card waits 240 seconds, then the call is denied and the model gets a clear reason. Nothing risky runs without a human."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Do I need to change my MCP servers?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. toolwrap runs ready-made servers — an npx or uvx command, a binary or a remote URL — and has no integrations of its own. Description edits and pinned arguments are applied by the gateway, not the server."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is there a cloud or sync?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. The daemon runs on your machine and listens on a local socket. To move sets to another machine or share them with a team, export them to a file."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <svg width="0" height="0" class="sr" aria-hidden="true">
+      <symbol id="mark" viewBox="0 0 64 64">
+        <path
+          d="M10 24V15a5 5 0 0 1 10 0v9zM10 40h10v9a5 5 0 0 1-10 0zM44 24V15a5 5 0 0 1 10 0v9zM44 40h10v9a5 5 0 0 1-10 0z"
+        />
+        <rect x="27" y="10" width="10" height="44" rx="5" />
+        <path class="band" d="M11 27h13v10H11a5 5 0 0 1 0-10zM40 27h13a5 5 0 0 1 0 10H40z" />
+      </symbol>
+      <symbol id="i-apple" viewBox="0 0 24 24">
+        <path
+          d="M16.4 12.6c0-2.5 2-3.7 2.1-3.8-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.8 1.2 1.8 2.6 3.1 2.5 1.3-.1 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.5 1-1.4 1.3-2.7 1.4-2.8-.1 0-2.4-.9-2.4-4.1zM14 5.2c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1 .1 2.1-.6 2.8-1.4z"
+        />
+      </symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24">
+        <path
+          d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3zm0 5a1.25 1.25 0 0 1 1.25 1.25v4.5a1.25 1.25 0 0 1-2.5 0v-4.5A1.25 1.25 0 0 1 12 7zm0 10.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"
+        />
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 14 14">
+        <path d="M2 1.2v11.6a.8.8 0 0 0 1.2.7l9.4-5.8a.8.8 0 0 0 0-1.4L3.2.5A.8.8 0 0 0 2 1.2z" />
+      </symbol>
+    </svg>
+
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="toolwrap home">
+          <svg class="mark" width="26" height="26" aria-hidden="true"><use href="#mark" /></svg>
+          toolwrap
+        </a>
+        <nav aria-label="Sections">
+          <ul>
+            <li><a href="#try">Try it</a></li>
+            <li><a href="#hood">How it works</a></li>
+            <li><a href="#security">Security</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </nav>
+        <p class="lang">
+          <span aria-current="page">EN</span><a href="/ru/" hreflang="ru" lang="ru">RU</a>
+        </p>
+        <a class="btn btn--primary" href="#download">Download</a>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="wrap">
+          <div>
+            <p class="what"><b>toolwrap</b> MCP gateway for Claude Code, Codex and Cursor</p>
+            <h1 id="hero-title">
+              Give your agent Jira, GitHub and the database.
+              <em>Keep the keys — and the final&nbsp;say.</em>
+            </h1>
+            <p class="lead">
+              toolwrap is a desktop app between your AI agent and your MCP servers.
+              <b>Each project gets its own set of tools and credentials</b>, secrets live in your OS
+              keychain, and anything destructive waits for your “Allow”.
+            </p>
+            <div class="cta">
+              <a class="btn btn--primary" href="/download/macos" data-download>
+                <svg aria-hidden="true"><use href="#i-apple" /></svg>
+                <span data-download-label>Download for macOS</span>
+              </a>
+              <a class="btn btn--line" href="#try">Try it here ↓</a>
+            </div>
+            <ul class="trust">
+              <li>Runs on your machine</li>
+              <li>Keys in the Keychain, not in files</li>
+              <li>macOS, Windows, Linux</li>
+            </ul>
+          </div>
+
+          <figure class="loom-card" aria-labelledby="loom-cap">
+            <p class="loom-title">
+              <span>your projects × your tools</span><span>thread on top — tool available</span>
+            </p>
+            <div class="loom" data-loom></div>
+            <p class="loom-foot" id="loom-cap" data-loom-foot aria-live="polite">
+              <b>Claude Code in ~/work/forkway</b> gets github, postgres (DELETE asks you first),
+              sentry and slack. <span class="no">jira</span> doesn’t exist for it. Keys come from
+              the Keychain.
+            </p>
+          </figure>
+        </div>
+      </section>
+
+      <section class="clients" aria-label="Supported clients">
+        <div class="wrap">
+          <p>Works with any MCP client</p>
+          <ul>
+            <li>Claude Code</li>
+            <li>Codex</li>
+            <li>Cursor</li>
+            <li>VS Code</li>
+            <li>Gemini CLI</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="try" aria-labelledby="try-title">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="kicker">Try it</p>
+            <h2 id="try-title">Be the human the agent has to ask</h2>
+            <p>
+              The agent runs in bypass mode — the terminal never asks. toolwrap lets safe calls
+              through silently and brings risky ones to you. Start the agent and make the calls.
+            </p>
+          </div>
+
+          <div class="sim" data-sim>
+            <div class="sim-term">
+              <div class="sim-bar" aria-hidden="true">
+                <i></i><i></i><i></i
+                ><span>~/work/forkway — claude --dangerously-skip-permissions</span>
+              </div>
+              <ol class="sim-log" data-log aria-live="polite">
+                <li class="dim">
+                  <span class="p">~/work/forkway</span> $ claude --dangerously-skip-permissions
+                </li>
+                <li class="u">› fix release 2.4.1 and merge the fix</li>
+              </ol>
+            </div>
+            <div class="sim-desk">
+              <div class="sim-bar" aria-hidden="true"><span>Your screen</span></div>
+              <div class="stage" data-stage>
+                <div class="idle">
+                  <svg class="mark" aria-hidden="true"><use href="#mark" /></svg>
+                  <p>The agent has a task. Let’s see when it needs&nbsp;you.</p>
+                  <button class="start" type="button" data-start>
+                    <svg aria-hidden="true"><use href="#i-play" /></svg>Start the agent
+                  </button>
+                </div>
+              </div>
+              <p class="sim-stats">
+                <span>Went through on their own: <b data-passed>0</b></span
+                ><span>Asked you: <b data-asked>0</b></span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="changes" aria-labelledby="changes-title">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="kicker">What changes</p>
+            <h2 id="changes-title">Before and after, one line per pain</h2>
+            <p>
+              For people with 5–15 projects, people who run agents unattended, and people who lead a
+              team.
+            </p>
+          </div>
+          <ul class="ledger">
+            <li class="head" aria-hidden="true">
+              <span>Without toolwrap</span><span></span><span>With toolwrap</span
+              ><span class="who">Who cares</span>
+            </li>
+            <li>
+              <p class="was">
+                Tokens sit in every project’s <code>.mcp.json</code> — and in git history.
+              </p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                Keys live in the Keychain. The client config gets one line:
+                <code>mcphub-bridge --set alpha</code>.
+              </p>
+              <p class="who">everyone</p>
+            </li>
+            <li>
+              <p class="was">
+                The agent in client Alpha’s folder files a ticket in client Beta’s Jira.
+              </p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                The folder picks the set: <code>~/work/alpha</code> only has Alpha’s Jira.
+              </p>
+              <p class="who">many projects</p>
+            </li>
+            <li>
+              <p class="was">
+                An agent in bypass mode can delete data or merge a PR while you get coffee.
+              </p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                A risky call waits for you in a card on top of all windows. No answer in 4 minutes —
+                denied.
+              </p>
+              <p class="who">unattended agents</p>
+            </li>
+            <li>
+              <p class="was">The agent edits its own config to lift the limits in its way.</p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                An edit that weakens protection waits for your “Apply”. Until then, the old policy
+                holds.
+              </p>
+              <p class="who">unattended agents</p>
+            </li>
+            <li>
+              <p class="was">
+                60 tools with weak descriptions — the agent gets confused and burns context.
+              </p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                Noise switched off, <code>project = ALPHA</code> pinned, descriptions rewritten —
+                and you see the token cost.
+              </p>
+              <p class="who">many projects, teams</p>
+            </li>
+            <li>
+              <p class="was">
+                A token expires — you learn it from an agent that already worked around it.
+              </p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                A dot on the set in the tray, and “Update token” opens the right form.
+              </p>
+              <p class="who">everyone</p>
+            </li>
+            <li>
+              <p class="was">Everyone on the team sets up MCP their own way.</p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                The set file lives in the repo: descriptions and rules are shared, keys stay
+                personal.
+              </p>
+              <p class="who">teams</p>
+            </li>
+            <li>
+              <p class="was">What the agent did overnight is anyone’s guess.</p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">Every call is logged with its arguments; secrets are redacted.</p>
+              <p class="who">unattended agents, teams</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="hood" aria-labelledby="hood-title">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="kicker">How it works</p>
+            <h2 id="hood-title">One file per project. One MCP server for the agent.</h2>
+            <p>
+              A set is a TOML file in <code>~/.mcphub/sets</code>. toolwrap launches the servers it
+              lists, injects the set’s keys, applies your edits and exposes the result to the agent
+              as a single MCP server. Everything in the window is also in the CLI.
+            </p>
+          </div>
+          <div class="hood">
+            <figure class="file">
+              <figcaption class="file-name">~/.mcphub/sets/alpha.toml</figcaption>
+              <pre><span class="h">[servers.jira.env]</span>
+JIRA_URL = <span class="s">"https://alpha.atlassian.net"</span>
+JIRA_TOKEN = <span class="s">"secret:alpha/JIRA_TOKEN"</span>   <span class="c"># the value is in the Keychain</span>
+
+<span class="h">[servers.jira.tools.search]</span>
+pin = { project = <span class="s">"ALPHA"</span> }
+description.append = <span class="s">"Always search only in project ALPHA."</span>
+
+<span class="h">[servers.jira.tools.delete_issue]</span>
+enabled = <span class="w">false</span>
+
+<span class="h">[servers.db.tools.query]</span>
+confirm = <span class="s">"when"</span>                   <span class="c"># risk is a property of the call</span>
+when = [{ arg = <span class="s">"sql"</span>, not_matches = <span class="s">"^\\s*(select|with|explain)\\b"</span> }]
+
+<span class="h">[[context.source]]</span>
+type = <span class="s">"files"</span>
+globs = [<span class="s">"docs/ARCHITECTURE.md"</span>]</pre>
+            </figure>
+            <figure class="file">
+              <figcaption class="file-name">terminal</figcaption>
+              <pre><span class="c"># move servers out of Claude Code and Codex</span>
+<span class="p">$</span> mcphub adopt ~/work/alpha --apply --remove
+
+<span class="c"># a new project</span>
+<span class="p">$</span> mcphub set create beta
+<span class="p">$</span> mcphub server add jira --set beta --secret JIRA_TOKEN
+<span class="p">$</span> mcphub link ~/work/beta --set beta
+
+<span class="c"># rules and checks</span>
+<span class="p">$</span> mcphub tool confirm beta github merge_pull_request always
+<span class="p">$</span> mcphub preview beta     <span class="c"># what the agent sees</span>
+<span class="p">$</span> mcphub log --set beta
+<span class="p">$</span> mcphub doctor</pre>
+            </figure>
+          </div>
+          <div class="points">
+            <div>
+              <h3>One server per set</h3>
+              <p>
+                Clients see a set as one MCP server: over stdio through <code>mcphub-bridge</code>,
+                or HTTP on 127.0.0.1.
+              </p>
+            </div>
+            <div>
+              <h3>Processes by credentials</h3>
+              <p>
+                Ten sets on one Jira account share one process; different keys get different
+                processes;
+                <code>share = root</code> gives each worktree its own.
+              </p>
+            </div>
+            <div>
+              <h3>Edits live in the gateway</h3>
+              <p>
+                Rewrite descriptions, pin arguments, hide tools, prompts and resources — without
+                forking a server.
+              </p>
+            </div>
+            <div>
+              <h3>Project context first</h3>
+              <p>
+                Text, files, a command or a tool call — the agent gets it at the start of the
+                session, unasked.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="security" aria-labelledby="security-title">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="kicker">Security model</p>
+            <h2 id="security-title">The agent does the work. The rules stay yours.</h2>
+          </div>
+          <ul class="guarantees">
+            <li>
+              <h3>Local only</h3>
+              <p>
+                The daemon listens on a local socket or named pipe; HTTP binds to 127.0.0.1. No
+                cloud, no account.
+              </p>
+            </li>
+            <li>
+              <h3>Secrets in the OS keychain</h3>
+              <p>
+                Keychain, Credential Manager or Secret Service. Config files only hold references
+                like
+                <code>secret:alpha/JIRA_TOKEN</code>.
+              </p>
+            </li>
+            <li>
+              <h3>Approval in any client mode</h3>
+              <p>
+                toolwrap asks even when the agent runs in auto, bypass or yolo mode, or the client
+                allows every tool.
+              </p>
+            </li>
+            <li>
+              <h3>Answers only from the window</h3>
+              <p>
+                An approval counts only in toolwrap’s own card — not in the terminal the agent
+                controls.
+              </p>
+            </li>
+            <li>
+              <h3>Weakening is held</h3>
+              <p>
+                Lifting an approval, enabling a disabled tool, turning the gate off or adding a
+                server waits for a human “Apply”.
+              </p>
+            </li>
+            <li>
+              <h3>A log with redacted secrets</h3>
+              <p>
+                Every call with its arguments and outcome — filter by set, server, failures and
+                approvals.
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="start" aria-labelledby="start-title">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="kicker">Get started</p>
+            <h2 id="start-title">Three steps. The agent won’t notice.</h2>
+          </div>
+          <ol class="steps">
+            <li>
+              <h3>Install the app</h3>
+              <p>toolwrap lives in the menu bar and updates itself when you click “Update”.</p>
+            </li>
+            <li>
+              <h3>Import from clients</h3>
+              <p>
+                Servers from Claude Code and Codex move into sets, keys into the Keychain — and out
+                of config files.
+              </p>
+            </li>
+            <li>
+              <h3>Keep working</h3>
+              <p>The agent opens the same folder and gets its set. You only decide what matters.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="faq" aria-labelledby="faq-title">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="kicker">FAQ</p>
+            <h2 id="faq-title">Frequently asked questions</h2>
+          </div>
+          <div class="faq">
+            <details>
+              <summary>What is an MCP gateway?</summary>
+              <p>
+                An MCP gateway sits between AI clients and MCP servers. Instead of configuring every
+                server in every client, you connect the client to the gateway once, and the gateway
+                decides which servers, credentials and rules apply to each project.
+              </p>
+            </details>
+            <details>
+              <summary>Which clients does toolwrap work with?</summary>
+              <p>
+                Any MCP client: Claude Code, Codex, Cursor, VS Code, Gemini CLI. Stdio clients
+                connect through
+                <code>mcphub-bridge</code>, others over HTTP on 127.0.0.1. Existing servers can be
+                imported from Claude Code and Codex.
+              </p>
+            </details>
+            <details>
+              <summary>Where are tokens and API keys stored?</summary>
+              <p>
+                In the OS secret store: Keychain on macOS, Credential Manager on Windows, Secret
+                Service on Linux. On import, toolwrap removes tokens from client configs; the call
+                log redacts secrets.
+              </p>
+            </details>
+            <details>
+              <summary>Can the agent turn approvals off by itself?</summary>
+              <p>
+                No. An edit that weakens protection — in the set file, through the CLI or by adding
+                a server — is not applied until a human clicks Apply in the toolwrap window. Until
+                then the previous policy holds.
+              </p>
+            </details>
+            <details>
+              <summary>What happens if I am away from the computer?</summary>
+              <p>
+                The approval card waits 240 seconds, then the call is denied and the model gets a
+                clear reason. Nothing risky runs without a human.
+              </p>
+            </details>
+            <details>
+              <summary>Do I need to change my MCP servers?</summary>
+              <p>
+                No. toolwrap runs ready-made servers — an <code>npx</code> or
+                <code>uvx</code> command, a binary or a remote URL — and has no integrations of its
+                own. Description edits and pinned arguments are applied by the gateway, not the
+                server.
+              </p>
+            </details>
+            <details>
+              <summary>Is there a cloud or sync?</summary>
+              <p>
+                No. The daemon runs on your machine and listens on a local socket. To move sets to
+                another machine or share them with a team, export them to a file.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section id="download" class="final" aria-labelledby="download-title">
+        <div class="wrap">
+          <svg class="mark big" aria-hidden="true"><use href="#mark" /></svg>
+          <div>
+            <h2 id="download-title">Your tools, woven into one set — each one still itself.</h2>
+            <p>
+              Download toolwrap, import your servers from Claude Code and Codex, and let the agent
+              work.
+            </p>
+            <div class="cta">
+              <a class="btn btn--primary" href="/download/macos">
+                <svg aria-hidden="true"><use href="#i-apple" /></svg>macOS
+              </a>
+              <a class="btn btn--line" href="/download/windows">Windows</a>
+              <a class="btn btn--line" href="/download/linux">Linux · AppImage, deb</a>
+            </div>
+            <p class="nope">
+              No cloud, no chat of its own, no marketplace. Just the gateway — that’s why it’s
+              light.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <a class="brand" href="/">
+          <svg class="mark" width="22" height="22" aria-hidden="true"><use href="#mark" /></svg>
+          toolwrap
+        </a>
+        <ul>
+          <li><a href="#try">Try it</a></li>
+          <li><a href="#hood">How it works</a></li>
+          <li><a href="#security">Security</a></li>
+          <li><a href="#faq">FAQ</a></li>
+          <li><a href="/ru/" hreflang="ru" lang="ru">Русский</a></li>
+        </ul>
+        <p>© 2026 toolwrap</p>
+      </div>
+    </footer>
+  </body>
+</html>

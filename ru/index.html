@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>toolwrap — MCP-шлюз для Claude Code, Codex и Cursor</title>
+    <meta
+      name="description"
+      content="toolwrap — локальный MCP-шлюз: свой набор MCP-серверов и ключей на каждый проект, секреты в системном хранилище и подтверждение рискованных вызовов агента — даже в bypass."
+    />
+    <link rel="canonical" href="https://toolwrap.app/ru/" />
+    <link rel="alternate" hreflang="en" href="https://toolwrap.app/" />
+    <link rel="alternate" hreflang="ru" href="https://toolwrap.app/ru/" />
+    <link rel="alternate" hreflang="x-default" href="https://toolwrap.app/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f6f4ee" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f1514" media="(prefers-color-scheme: dark)" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="toolwrap" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:url" content="https://toolwrap.app/ru/" />
+    <meta
+      property="og:title"
+      content="toolwrap — дайте агенту инструменты, а ключи оставьте себе"
+    />
+    <meta
+      property="og:description"
+      content="У каждого проекта свой набор MCP-серверов и ключей. Удалить, влить или задеплоить агент может только после вашего «Разрешить»."
+    />
+    <meta property="og:image" content="https://toolwrap.app/og-ru.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="toolwrap: проекты поверх инструментов, которые каждый из них получает"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/assets/site.css" />
+    <script src="/assets/site.js" defer></script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebPage",
+            "@id": "https://toolwrap.app/ru/#page",
+            "url": "https://toolwrap.app/ru/",
+            "name": "toolwrap — MCP-шлюз для Claude Code, Codex и Cursor",
+            "inLanguage": "ru",
+            "isPartOf": { "@id": "https://toolwrap.app/#site" },
+            "about": { "@id": "https://toolwrap.app/#app" }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://toolwrap.app/ru/#faq",
+            "inLanguage": "ru",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Что такое MCP-шлюз?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "MCP-шлюз стоит между AI-клиентами и MCP-серверами. Вместо того чтобы настраивать каждый сервер в каждом клиенте, вы один раз подключаете клиент к шлюзу, а шлюз решает, какие серверы, ключи и правила действуют в каждом проекте."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "С какими клиентами работает toolwrap?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "С любым MCP-клиентом: Claude Code, Codex, Cursor, VS Code, Gemini CLI. Клиенты со stdio подключаются через mcphub-bridge, остальные — по HTTP на 127.0.0.1. Перенести уже настроенные серверы можно из Claude Code и Codex."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Где хранятся ключи и токены?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "В системном хранилище: Keychain на macOS, Credential Manager на Windows, Secret Service на Linux. При переносе toolwrap удаляет токены из конфигов клиентов, в журнале секреты замазаны."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Может ли агент сам отключить подтверждение?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Нет. Правка, которая ослабляет защиту — в файле набора, через CLI или новым сервером, — не применяется, пока человек не нажмёт «Применить» в окне toolwrap. До этого действует прежняя политика."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Что будет, если я отошёл от компьютера?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Карточка ждёт ответа 240 секунд, затем вызов отклоняется, и модель получает понятную причину. Опасное без человека не выполняется."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Нужно ли менять сами MCP-серверы?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Нет. toolwrap запускает готовые серверы — команду npx или uvx, бинарь или удалённый URL — и не пишет своих интеграций. Правки описаний и закреплённые аргументы применяет шлюз, а не сервер."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Есть ли облако или синхронизация?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Нет. Демон работает на вашей машине и слушает локальный сокет. Перенести наборы на другую машину или в команду можно экспортом в файл."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#main">К содержанию</a>
+
+    <svg width="0" height="0" class="sr" aria-hidden="true">
+      <symbol id="mark" viewBox="0 0 64 64">
+        <path
+          d="M10 24V15a5 5 0 0 1 10 0v9zM10 40h10v9a5 5 0 0 1-10 0zM44 24V15a5 5 0 0 1 10 0v9zM44 40h10v9a5 5 0 0 1-10 0z"
+        />
+        <rect x="27" y="10" width="10" height="44" rx="5" />
+        <path class="band" d="M11 27h13v10H11a5 5 0 0 1 0-10zM40 27h13a5 5 0 0 1 0 10H40z" />
+      </symbol>
+      <symbol id="i-apple" viewBox="0 0 24 24">
+        <path
+          d="M16.4 12.6c0-2.5 2-3.7 2.1-3.8-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.8 1.2 1.8 2.6 3.1 2.5 1.3-.1 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.5 1-1.4 1.3-2.7 1.4-2.8-.1 0-2.4-.9-2.4-4.1zM14 5.2c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1 .1 2.1-.6 2.8-1.4z"
+        />
+      </symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24">
+        <path
+          d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3zm0 5a1.25 1.25 0 0 1 1.25 1.25v4.5a1.25 1.25 0 0 1-2.5 0v-4.5A1.25 1.25 0 0 1 12 7zm0 10.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"
+        />
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 14 14">
+        <path d="M2 1.2v11.6a.8.8 0 0 0 1.2.7l9.4-5.8a.8.8 0 0 0 0-1.4L3.2.5A.8.8 0 0 0 2 1.2z" />
+      </symbol>
+    </svg>
+
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/ru/" aria-label="toolwrap — на главную">
+          <svg class="mark" width="26" height="26" aria-hidden="true"><use href="#mark" /></svg>
+          toolwrap
+        </a>
+        <nav aria-label="Разделы">
+          <ul>
+            <li><a href="#try">Попробовать</a></li>
+            <li><a href="#hood">Как устроено</a></li>
+            <li><a href="#security">Безопасность</a></li>
+            <li><a href="#faq">Вопросы</a></li>
+          </ul>
+        </nav>
+        <p class="lang">
+          <a href="/" hreflang="en" lang="en">EN</a><span aria-current="page">RU</span>
+        </p>
+        <a class="btn btn--primary" href="#download">Скачать</a>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="wrap">
+          <div>
+            <p class="what"><b>toolwrap</b> MCP-шлюз для Claude Code, Codex и Cursor</p>
+            <h1 id="hero-title">
+              Дайте агенту Jira, GitHub и&nbsp;базу.
+              <em>Ключи и&nbsp;последнее слово оставьте себе.</em>
+            </h1>
+            <p class="lead">
+              toolwrap — приложение между вашим AI-агентом и&nbsp;MCP-серверами.
+              <b>У&nbsp;каждого проекта свой набор инструментов и&nbsp;ключей</b>, секреты лежат
+              в&nbsp;системном хранилище, а&nbsp;всё разрушительное ждёт вашего «Разрешить».
+            </p>
+            <div class="cta">
+              <a class="btn btn--primary" href="/download/macos" data-download>
+                <svg aria-hidden="true"><use href="#i-apple" /></svg>
+                <span data-download-label>Скачать для macOS</span>
+              </a>
+              <a class="btn btn--line" href="#try">Попробовать здесь ↓</a>
+            </div>
+            <ul class="trust">
+              <li>Работает на вашей машине</li>
+              <li>Ключи в Keychain, не в файлах</li>
+              <li>macOS, Windows, Linux</li>
+            </ul>
+          </div>
+
+          <figure class="loom-card" aria-labelledby="loom-cap">
+            <p class="loom-title">
+              <span>ваши проекты × инструменты</span><span>нить поверх — инструмент есть</span>
+            </p>
+            <div class="loom" data-loom></div>
+            <p class="loom-foot" id="loom-cap" data-loom-foot aria-live="polite">
+              <b>Claude Code в ~/work/forkway</b> получает github, postgres (DELETE — с вашего
+              разрешения), sentry и&nbsp;slack. <span class="no">jira</span> для него
+              не&nbsp;существует. Ключи — из&nbsp;Keychain.
+            </p>
+          </figure>
+        </div>
+      </section>
+
+      <section class="clients" aria-label="Поддерживаемые клиенты">
+        <div class="wrap">
+          <p>Работает с любым MCP-клиентом</p>
+          <ul>
+            <li>Claude Code</li>
+            <li>Codex</li>
+            <li>Cursor</li>
+            <li>VS Code</li>
+            <li>Gemini CLI</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="try" aria-labelledby="try-title">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="kicker">Попробуйте</p>
+            <h2 id="try-title">Побудьте человеком, которого агент обязан спросить</h2>
+            <p>
+              Агент работает в&nbsp;bypass — терминал его ни&nbsp;о&nbsp;чём не&nbsp;спрашивает.
+              Безопасные вызовы toolwrap пропускает молча, а&nbsp;рискованные приносит вам.
+              Запустите агента и&nbsp;решайте сами.
+            </p>
+          </div>
+
+          <div class="sim" data-sim>
+            <div class="sim-term">
+              <div class="sim-bar" aria-hidden="true">
+                <i></i><i></i><i></i
+                ><span>~/work/forkway — claude --dangerously-skip-permissions</span>
+              </div>
+              <ol class="sim-log" data-log aria-live="polite">
+                <li class="dim">
+                  <span class="p">~/work/forkway</span> $ claude --dangerously-skip-permissions
+                </li>
+                <li class="u">› почини релиз 2.4.1 и влей исправление</li>
+              </ol>
+            </div>
+            <div class="sim-desk">
+              <div class="sim-bar" aria-hidden="true"><span>Ваш экран</span></div>
+              <div class="stage" data-stage>
+                <div class="idle">
+                  <svg class="mark" aria-hidden="true"><use href="#mark" /></svg>
+                  <p>Агенту дали задачу. Посмотрим, когда ему понадобитесь&nbsp;вы.</p>
+                  <button class="start" type="button" data-start>
+                    <svg aria-hidden="true"><use href="#i-play" /></svg>Запустить агента
+                  </button>
+                </div>
+              </div>
+              <p class="sim-stats">
+                <span>Прошло без вас: <b data-passed>0</b></span
+                ><span>Спросили вас: <b data-asked>0</b></span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="changes" aria-labelledby="changes-title">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="kicker">Что меняется</p>
+            <h2 id="changes-title">Было — стало, по&nbsp;строчке на&nbsp;каждую боль</h2>
+            <p>
+              Для тех, у&nbsp;кого 5–15 проектов, кто запускает агента без присмотра и&nbsp;кто
+              ведёт команду.
+            </p>
+          </div>
+          <ul class="ledger">
+            <li class="head" aria-hidden="true">
+              <span>Без toolwrap</span><span></span><span>С toolwrap</span
+              ><span class="who">Кому важно</span>
+            </li>
+            <li>
+              <p class="was">
+                Токены лежат в&nbsp;<code>.mcp.json</code> каждого проекта — и&nbsp;в&nbsp;истории
+                git.
+              </p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                Ключи в&nbsp;Keychain. В&nbsp;конфиге клиента — одна строка:
+                <code>mcphub-bridge --set alpha</code>.
+              </p>
+              <p class="who">всем</p>
+            </li>
+            <li>
+              <p class="was">
+                Агент в&nbsp;папке клиента Alpha заводит задачу в&nbsp;Jira клиента Beta.
+              </p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                Папка сама выбирает набор: в&nbsp;<code>~/work/alpha</code> есть только Jira Alpha.
+              </p>
+              <p class="who">много проектов</p>
+            </li>
+            <li>
+              <p class="was">
+                Агент в&nbsp;bypass может удалить данные или влить PR, пока вы пьёте кофе.
+              </p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                Рискованный вызов ждёт вас в&nbsp;карточке поверх окон. Не&nbsp;ответили
+                за&nbsp;4&nbsp;минуты — отказ.
+              </p>
+              <p class="who">агент без присмотра</p>
+            </li>
+            <li>
+              <p class="was">
+                Агент сам правит конфиг и&nbsp;снимает ограничения, которые ему мешают.
+              </p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                Правка, которая ослабляет защиту, ждёт вашего «Применить». Пока ждёт — действует
+                прежняя.
+              </p>
+              <p class="who">агент без присмотра</p>
+            </li>
+            <li>
+              <p class="was">
+                60 инструментов со&nbsp;слабыми описаниями — агент путается и&nbsp;тратит контекст.
+              </p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                Лишнее выключено, <code>project = ALPHA</code> закреплён, описания дописаны —
+                и&nbsp;видно, сколько это токенов.
+              </p>
+              <p class="who">много проектов, команда</p>
+            </li>
+            <li>
+              <p class="was">
+                Протух токен — узнаёте от&nbsp;агента, который уже пошёл в&nbsp;обход.
+              </p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                Точка у&nbsp;набора в&nbsp;трее и&nbsp;кнопка «Обновить токен», которая ведёт прямо
+                в&nbsp;форму.
+              </p>
+              <p class="who">всем</p>
+            </li>
+            <li>
+              <p class="was">Каждый в&nbsp;команде настраивает MCP по-своему.</p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                Файл набора лежит в&nbsp;репозитории: описания и&nbsp;правила общие, ключи
+                у&nbsp;каждого свои.
+              </p>
+              <p class="who">команда</p>
+            </li>
+            <li>
+              <p class="was">Что агент делал ночью — не&nbsp;восстановить.</p>
+              <span class="arrow" aria-hidden="true">→</span>
+              <p class="now">
+                Журнал каждого вызова с&nbsp;аргументами; секреты в&nbsp;нём замазаны.
+              </p>
+              <p class="who">агент без присмотра, команда</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="hood" aria-labelledby="hood-title">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="kicker">Как устроено</p>
+            <h2 id="hood-title">Один файл на&nbsp;проект. Один MCP-сервер для агента.</h2>
+            <p>
+              Набор — это TOML-файл в&nbsp;<code>~/.mcphub/sets</code>. toolwrap запускает
+              перечисленные в&nbsp;нём серверы, подставляет ключи набора, применяет ваши правки
+              и&nbsp;отдаёт агенту всё это как один MCP-сервер. Всё, что есть в&nbsp;окне, есть
+              и&nbsp;в&nbsp;CLI.
+            </p>
+          </div>
+          <div class="hood">
+            <figure class="file">
+              <figcaption class="file-name">~/.mcphub/sets/alpha.toml</figcaption>
+              <pre><span class="h">[servers.jira.env]</span>
+JIRA_URL = <span class="s">"https://alpha.atlassian.net"</span>
+JIRA_TOKEN = <span class="s">"secret:alpha/JIRA_TOKEN"</span>   <span class="c"># значение — в Keychain</span>
+
+<span class="h">[servers.jira.tools.search]</span>
+pin = { project = <span class="s">"ALPHA"</span> }
+description.append = <span class="s">"Always search only in project ALPHA."</span>
+
+<span class="h">[servers.jira.tools.delete_issue]</span>
+enabled = <span class="w">false</span>
+
+<span class="h">[servers.db.tools.query]</span>
+confirm = <span class="s">"when"</span>                   <span class="c"># риск — свойство вызова</span>
+when = [{ arg = <span class="s">"sql"</span>, not_matches = <span class="s">"^\\s*(select|with|explain)\\b"</span> }]
+
+<span class="h">[[context.source]]</span>
+type = <span class="s">"files"</span>
+globs = [<span class="s">"docs/ARCHITECTURE.md"</span>]</pre>
+            </figure>
+            <figure class="file">
+              <figcaption class="file-name">терминал</figcaption>
+              <pre><span class="c"># забрать серверы из Claude Code и Codex</span>
+<span class="p">$</span> mcphub adopt ~/work/alpha --apply --remove
+
+<span class="c"># новый проект</span>
+<span class="p">$</span> mcphub set create beta
+<span class="p">$</span> mcphub server add jira --set beta --secret JIRA_TOKEN
+<span class="p">$</span> mcphub link ~/work/beta --set beta
+
+<span class="c"># правила и проверки</span>
+<span class="p">$</span> mcphub tool confirm beta github merge_pull_request always
+<span class="p">$</span> mcphub preview beta     <span class="c"># что видит агент</span>
+<span class="p">$</span> mcphub log --set beta
+<span class="p">$</span> mcphub doctor</pre>
+            </figure>
+          </div>
+          <div class="points">
+            <div>
+              <h3>Один сервер на&nbsp;набор</h3>
+              <p>
+                Клиент видит набор как один MCP-сервер: по&nbsp;stdio через
+                <code>mcphub-bridge</code> или по&nbsp;HTTP на&nbsp;127.0.0.1.
+              </p>
+            </div>
+            <div>
+              <h3>Процессы по&nbsp;ключам</h3>
+              <p>
+                Десять наборов на&nbsp;одном аккаунте Jira делят один процесс; разные ключи — разные
+                процессы;
+                <code>share = root</code> даёт каждому worktree свой.
+              </p>
+            </div>
+            <div>
+              <h3>Правки живут в&nbsp;шлюзе</h3>
+              <p>
+                Перепишите описания, закрепите аргументы, спрячьте инструменты, промпты
+                и&nbsp;ресурсы — без форка сервера.
+              </p>
+            </div>
+            <div>
+              <h3>Сначала контекст проекта</h3>
+              <p>
+                Текст, файлы, команда или вызов инструмента — агент получает их в&nbsp;начале
+                сессии, без просьбы.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="security" aria-labelledby="security-title">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="kicker">Модель безопасности</p>
+            <h2 id="security-title">Работу делает агент. Правила остаются вашими.</h2>
+          </div>
+          <ul class="guarantees">
+            <li>
+              <h3>Только локально</h3>
+              <p>
+                Демон слушает локальный сокет или named pipe, HTTP — только на&nbsp;127.0.0.1. Без
+                облака и&nbsp;аккаунта.
+              </p>
+            </li>
+            <li>
+              <h3>Секреты в&nbsp;системном хранилище</h3>
+              <p>
+                Keychain, Credential Manager или Secret Service. В&nbsp;файлах — только ссылки вида
+                <code>secret:alpha/JIRA_TOKEN</code>.
+              </p>
+            </li>
+            <li>
+              <h3>Подтверждение в&nbsp;любом режиме клиента</h3>
+              <p>
+                toolwrap спрашивает, даже когда агент запущен в&nbsp;auto, bypass или yolo, или
+                клиент разрешил все инструменты.
+              </p>
+            </li>
+            <li>
+              <h3>Ответ — только из&nbsp;окна</h3>
+              <p>
+                Подтверждение засчитывается только в&nbsp;карточке toolwrap,
+                а&nbsp;не&nbsp;в&nbsp;терминале, которым управляет агент.
+              </p>
+            </li>
+            <li>
+              <h3>Ослабление задерживается</h3>
+              <p>
+                Снять подтверждение, включить выключенный инструмент, отключить gate или добавить
+                сервер можно только после «Применить» человека.
+              </p>
+            </li>
+            <li>
+              <h3>Журнал без секретов</h3>
+              <p>
+                Каждый вызов с&nbsp;аргументами и&nbsp;исходом — с&nbsp;фильтрами по&nbsp;набору,
+                серверу, сбоям и&nbsp;подтверждениям.
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="start" aria-labelledby="start-title">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="kicker">Как начать</p>
+            <h2 id="start-title">Три шага. Агент ничего не&nbsp;заметит</h2>
+          </div>
+          <ol class="steps">
+            <li>
+              <h3>Установите приложение</h3>
+              <p>
+                toolwrap живёт в&nbsp;строке меню и&nbsp;обновляется сам — когда вы нажмёте
+                «Обновить».
+              </p>
+            </li>
+            <li>
+              <h3>«Перенести из&nbsp;клиентов»</h3>
+              <p>
+                Серверы из&nbsp;Claude Code и&nbsp;Codex переезжают в&nbsp;наборы, ключи —
+                в&nbsp;Keychain, из&nbsp;конфигов они исчезают.
+              </p>
+            </li>
+            <li>
+              <h3>Работайте как раньше</h3>
+              <p>
+                Агент открывает ту&nbsp;же папку и&nbsp;получает свой набор. А&nbsp;вы решаете
+                только то, что важно.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="faq" aria-labelledby="faq-title">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="kicker">Вопросы</p>
+            <h2 id="faq-title">Частые вопросы</h2>
+          </div>
+          <div class="faq">
+            <details>
+              <summary>Что такое MCP-шлюз?</summary>
+              <p>
+                MCP-шлюз стоит между AI-клиентами и&nbsp;MCP-серверами. Вместо того чтобы
+                настраивать каждый сервер в&nbsp;каждом клиенте, вы один раз подключаете клиент
+                к&nbsp;шлюзу, а&nbsp;шлюз решает, какие серверы, ключи и&nbsp;правила действуют
+                в&nbsp;каждом проекте.
+              </p>
+            </details>
+            <details>
+              <summary>С какими клиентами работает toolwrap?</summary>
+              <p>
+                С любым MCP-клиентом: Claude Code, Codex, Cursor, VS Code, Gemini CLI. Клиенты
+                со&nbsp;stdio подключаются через <code>mcphub-bridge</code>, остальные —
+                по&nbsp;HTTP на&nbsp;127.0.0.1. Перенести уже настроенные серверы можно
+                из&nbsp;Claude Code и&nbsp;Codex.
+              </p>
+            </details>
+            <details>
+              <summary>Где хранятся ключи и токены?</summary>
+              <p>
+                В&nbsp;системном хранилище: Keychain на&nbsp;macOS, Credential Manager
+                на&nbsp;Windows, Secret Service на&nbsp;Linux. При переносе toolwrap удаляет токены
+                из&nbsp;конфигов клиентов, в&nbsp;журнале секреты замазаны.
+              </p>
+            </details>
+            <details>
+              <summary>Может ли агент сам отключить подтверждение?</summary>
+              <p>
+                Нет. Правка, которая ослабляет защиту — в&nbsp;файле набора, через CLI или новым
+                сервером, — не&nbsp;применяется, пока человек не&nbsp;нажмёт «Применить» в&nbsp;окне
+                toolwrap. До&nbsp;этого действует прежняя политика.
+              </p>
+            </details>
+            <details>
+              <summary>Что будет, если я отошёл от компьютера?</summary>
+              <p>
+                Карточка ждёт ответа 240&nbsp;секунд, затем вызов отклоняется, и&nbsp;модель
+                получает понятную причину. Опасное без человека не&nbsp;выполняется.
+              </p>
+            </details>
+            <details>
+              <summary>Нужно ли менять сами MCP-серверы?</summary>
+              <p>
+                Нет. toolwrap запускает готовые серверы — команду <code>npx</code> или
+                <code>uvx</code>, бинарь или удалённый URL — и&nbsp;не&nbsp;пишет своих интеграций.
+                Правки описаний и&nbsp;закреплённые аргументы применяет шлюз, а&nbsp;не&nbsp;сервер.
+              </p>
+            </details>
+            <details>
+              <summary>Есть ли облако или синхронизация?</summary>
+              <p>
+                Нет. Демон работает на&nbsp;вашей машине и&nbsp;слушает локальный сокет. Перенести
+                наборы на&nbsp;другую машину или в&nbsp;команду можно экспортом в&nbsp;файл.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section id="download" class="final" aria-labelledby="download-title">
+        <div class="wrap">
+          <svg class="mark big" aria-hidden="true"><use href="#mark" /></svg>
+          <div>
+            <h2 id="download-title">
+              Ваши инструменты, сплетённые в&nbsp;один набор, — каждый остаётся собой
+            </h2>
+            <p>
+              Скачайте toolwrap, перенесите серверы из&nbsp;Claude Code и&nbsp;Codex — и&nbsp;дайте
+              агенту работать.
+            </p>
+            <div class="cta">
+              <a class="btn btn--primary" href="/download/macos">
+                <svg aria-hidden="true"><use href="#i-apple" /></svg>macOS
+              </a>
+              <a class="btn btn--line" href="/download/windows">Windows</a>
+              <a class="btn btn--line" href="/download/linux">Linux · AppImage, deb</a>
+            </div>
+            <p class="nope">
+              Без облака, без своего чата, без маркетплейса. Только шлюз — поэтому лёгкий.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <a class="brand" href="/ru/">
+          <svg class="mark" width="22" height="22" aria-hidden="true"><use href="#mark" /></svg>
+          toolwrap
+        </a>
+        <ul>
+          <li><a href="#try">Попробовать</a></li>
+          <li><a href="#hood">Как устроено</a></li>
+          <li><a href="#security">Безопасность</a></li>
+          <li><a href="#faq">Вопросы</a></li>
+          <li><a href="/" hreflang="en" lang="en">English</a></li>
+        </ul>
+        <p>© 2026 toolwrap</p>
+      </div>
+    </footer>
+  </body>
+</html>
